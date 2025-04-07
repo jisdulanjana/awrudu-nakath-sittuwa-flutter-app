@@ -4,10 +4,10 @@ import 'package:flutter/material.dart';
 import '../data/nakath_data.dart';
 import '../widgets/event_card.dart';
 import 'dart:async';
-import 'package:lottie/lottie.dart'; // For animated illustrations
-import 'package:google_fonts/google_fonts.dart'; // For better typography
-import 'package:flutter_animate/flutter_animate.dart'; // For smooth animations
-import 'package:shimmer/shimmer.dart'; // For loading effects
+import 'package:lottie/lottie.dart';
+import 'package:google_fonts/google_fonts.dart';
+import 'package:flutter_animate/flutter_animate.dart';
+import 'package:shimmer/shimmer.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -26,15 +26,20 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
   @override
   void initState() {
     super.initState();
+    _initAnimationController();
+    _findUpcomingEvent();
+    _setupCountdown();
+    _simulateLoading();
+  }
+
+  void _initAnimationController() {
     _animationController = AnimationController(
       vsync: this,
       duration: const Duration(seconds: 2),
     )..repeat(reverse: true);
-    
-    _findUpcomingEvent();
-    _setupCountdown();
-    
-    // Simulate loading for smoother transitions
+  }
+
+  void _simulateLoading() {
     Future.delayed(const Duration(milliseconds: 800), () {
       if (mounted) {
         setState(() {
@@ -54,8 +59,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
 
   void _setupCountdown() {
     _updateTimeRemaining();
-    
-    _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
+    _timer = Timer.periodic(const Duration(seconds: 1), (_) {
       _updateTimeRemaining();
     });
   }
@@ -65,17 +69,14 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
     
     // Check if current upcoming event has passed
     if (!_upcomingEvent.dateTime.isAfter(now)) {
-      // Find the next upcoming event
       _findUpcomingEvent();
     }
     
-    if (_upcomingEvent.dateTime.isAfter(now)) {
+    if (mounted) {
       setState(() {
-        _timeRemaining = _upcomingEvent.dateTime.difference(now);
-      });
-    } else {
-      setState(() {
-        _timeRemaining = Duration.zero;
+        _timeRemaining = _upcomingEvent.dateTime.isAfter(now) 
+            ? _upcomingEvent.dateTime.difference(now)
+            : Duration.zero;
       });
     }
   }
@@ -91,18 +92,47 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
   Widget build(BuildContext context) {
     return Scaffold(
       body: _isLoading 
-        ? _buildLoadingView() 
-        : _buildMainContent(),
+        ? const LoadingView() 
+        : MainContentView(
+            upcomingEvent: _upcomingEvent,
+            timeRemaining: _timeRemaining,
+            animationController: _animationController,
+            onNotificationTap: _showNotificationDialog,
+            onAboutTap: _showAboutDialog,
+          ),
     );
   }
 
-  Widget _buildLoadingView() {
+  void _showNotificationDialog() {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return const NotificationSettingsDialog();
+      },
+    );
+  }
+
+  void _showAboutDialog() {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return const AboutDialog();
+      },
+    );
+  }
+}
+
+class LoadingView extends StatelessWidget {
+  const LoadingView({super.key});
+
+  @override
+  Widget build(BuildContext context) {
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Lottie.asset(
-            'assets/animations/sri-lanka-loading.json', 
+            'assets/animations/loading.json', 
             width: 200,
             height: 200,
           ),
@@ -122,122 +152,47 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
       ),
     );
   }
+}
 
-  Widget _buildMainContent() {
+class MainContentView extends StatelessWidget {
+  final NakathEvent upcomingEvent;
+  final Duration timeRemaining;
+  final AnimationController animationController;
+  final VoidCallback onNotificationTap;
+  final VoidCallback onAboutTap;
+
+  const MainContentView({
+    super.key,
+    required this.upcomingEvent,
+    required this.timeRemaining,
+    required this.animationController,
+    required this.onNotificationTap,
+    required this.onAboutTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
     return CustomScrollView(
       slivers: [
-        // Fancy app bar with parallax effect
-        SliverAppBar(
-          expandedHeight: 220,
-          floating: false,
-          pinned: true,
-          backgroundColor: Colors.deepOrange.shade700,
-          flexibleSpace: FlexibleSpaceBar(
-            title: Text(
-              'අලුත් අවුරුදු නැකත්',
-              style: GoogleFonts.notoSansSinhala(
-                fontWeight: FontWeight.bold,
-                color: Colors.white,
-              ),
-            ),
-            background: Stack(
-              fit: StackFit.expand,
-              children: [
-                Image.asset(
-                  'assets/images/avurudu_header.jpg',
-                  fit: BoxFit.cover,
-                ),
-                Container(
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      begin: Alignment.topCenter,
-                      end: Alignment.bottomCenter,
-                      colors: [
-                        Colors.transparent,
-                        Colors.deepOrange.shade900.withOpacity(0.7),
-                      ],
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          actions: [
-            IconButton(
-              icon: const Icon(Icons.notifications_outlined, color: Colors.white),
-              onPressed: () {
-                // Show notification settings dialog
-                _showNotificationDialog();
-              },
-            ),
-            IconButton(
-              icon: const Icon(Icons.info_outline, color: Colors.white),
-              onPressed: () {
-                // Show about dialog
-                _showAboutDialog();
-              },
-            ),
-          ],
-        ),
-        
-        // Main content
+        _buildAppBar(),
         SliverToBoxAdapter(
           child: Padding(
             padding: const EdgeInsets.all(16.0),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Upcoming event section
-                _buildUpcomingEventSection(),
-                
-                const SizedBox(height: 24),
-                
-                // All events list header
-                Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 16.0),
-                  child: Row(
-                    children: [
-                      Icon(
-                        Icons.event_available, 
-                        color: Colors.deepOrange.shade700,
-                        size: 28,
-                      ),
-                      const SizedBox(width: 12),
-                      Text(
-                        'සියලු නැකත්',
-                        style: GoogleFonts.notoSansSinhala(
-                          fontSize: 22,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.deepOrange.shade700,
-                        ),
-                      ),
-                    ],
-                  ),
+                UpcomingEventSection(
+                  upcomingEvent: upcomingEvent,
+                  timeRemaining: timeRemaining,
+                  animationController: animationController,
                 ),
+                const SizedBox(height: 24),
+                _buildEventsListHeader(),
               ],
             ),
           ),
         ),
-        
-        // Events list
-        SliverList(
-          delegate: SliverChildBuilderDelegate(
-            (context, index) {
-              final event = nakathEvents[index];
-              final bool isCurrentUpcoming = event.dateTime == _upcomingEvent.dateTime;
-              
-              return EventCard(
-                event: event, 
-                isUpcoming: isCurrentUpcoming,
-              ).animate()
-              .fadeIn(duration: 300.ms, delay: (index * 100).ms)
-              .slideY(begin: 0.2, end: 0, duration: 300.ms, curve: Curves.easeOutQuad);
-            },
-            childCount: nakathEvents.length,
-          ),
-        ),
-        
-        // Footer space
+        _buildEventsList(),
         const SliverToBoxAdapter(
           child: SizedBox(height: 24),
         ),
@@ -245,7 +200,113 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
     );
   }
 
-  Widget _buildUpcomingEventSection() {
+  Widget _buildAppBar() {
+    return SliverAppBar(
+      expandedHeight: 220,
+      floating: false,
+      pinned: true,
+      backgroundColor: Colors.deepOrange.shade700,
+      flexibleSpace: FlexibleSpaceBar(
+        title: Text(
+          'අලුත් අවුරුදු නැකත්',
+          style: GoogleFonts.notoSansSinhala(
+            fontWeight: FontWeight.bold,
+            color: Colors.white,
+          ),
+        ),
+        background: Stack(
+          fit: StackFit.expand,
+          children: [
+            Image.asset(
+              'assets/images/avurudu_header.jpg',
+              fit: BoxFit.cover,
+            ),
+            Container(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [
+                    Colors.transparent,
+                    Colors.deepOrange.shade900.withOpacity(0.7),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+      actions: [
+        IconButton(
+          icon: const Icon(Icons.notifications_outlined, color: Colors.white),
+          onPressed: onNotificationTap,
+        ),
+        IconButton(
+          icon: const Icon(Icons.info_outline, color: Colors.white),
+          onPressed: onAboutTap,
+        ),
+      ],
+    );
+  }
+
+  Widget _buildEventsListHeader() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 16.0),
+      child: Row(
+        children: [
+          Icon(
+            Icons.event_available, 
+            color: Colors.deepOrange.shade700,
+            size: 28,
+          ),
+          const SizedBox(width: 12),
+          Text(
+            'සියලු නැකත්',
+            style: GoogleFonts.notoSansSinhala(
+              fontSize: 22,
+              fontWeight: FontWeight.bold,
+              color: Colors.deepOrange.shade700,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildEventsList() {
+    return SliverList(
+      delegate: SliverChildBuilderDelegate(
+        (context, index) {
+          final event = nakathEvents[index];
+          final bool isCurrentUpcoming = event.dateTime == upcomingEvent.dateTime;
+          
+          return EventCard(
+            event: event, 
+            isUpcoming: isCurrentUpcoming,
+          ).animate()
+          .fadeIn(duration: 300.ms, delay: (index * 100).ms)
+          .slideY(begin: 0.2, end: 0, duration: 300.ms, curve: Curves.easeOutQuad);
+        },
+        childCount: nakathEvents.length,
+      ),
+    );
+  }
+}
+
+class UpcomingEventSection extends StatelessWidget {
+  final NakathEvent upcomingEvent;
+  final Duration timeRemaining;
+  final AnimationController animationController;
+
+  const UpcomingEventSection({
+    super.key,
+    required this.upcomingEvent,
+    required this.timeRemaining,
+    required this.animationController,
+  });
+
+  @override
+  Widget build(BuildContext context) {
     return Card(
       elevation: 8,
       shape: RoundedRectangleBorder(
@@ -268,69 +329,14 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Row(
-                children: [
-                  Icon(
-                    Icons.upcoming, 
-                    color: Colors.deepOrange.shade700,
-                    size: 28,
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Text(
-                      'ලබන නැකත: ${_upcomingEvent.title}',
-                      style: GoogleFonts.notoSansSinhala(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.deepOrange.shade700,
-                      ),
-                    ),
-                  ),
-                ],
+              _buildEventHeader(),
+              const SizedBox(height: 16),
+              CountdownTimer(
+                timeRemaining: timeRemaining,
+                animationController: animationController,
               ),
               const SizedBox(height: 16),
-              _buildCountdownTimer(),
-              const SizedBox(height: 16),
-              InkWell(
-                onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => EventDetailScreen(event: _upcomingEvent),
-                    ),
-                  );
-                },
-                borderRadius: BorderRadius.circular(16),
-                child: Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.symmetric(vertical: 12),
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(16),
-                    color: Colors.deepOrange.shade600,
-                  ),
-                  child: Center(
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(
-                          'විස්තර බලන්න',
-                          style: GoogleFonts.notoSansSinhala(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.white,
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        const Icon(
-                          Icons.arrow_forward,
-                          color: Colors.white,
-                          size: 16,
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
+              _buildDetailsButton(context),
             ],
           ),
         ),
@@ -340,7 +346,85 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
       .scale(begin: const Offset(0.95, 0.95), duration: 600.ms);
   }
 
-  Widget _buildCountdownTimer() {
+  Widget _buildEventHeader() {
+    return Row(
+      children: [
+        Icon(
+          Icons.upcoming, 
+          color: Colors.deepOrange.shade700,
+          size: 28,
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Text(
+            'ලබන නැකත: ${upcomingEvent.title}',
+            style: GoogleFonts.notoSansSinhala(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+              color: Colors.deepOrange.shade700,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildDetailsButton(BuildContext context) {
+    return InkWell(
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => EventDetailScreen(event: upcomingEvent),
+          ),
+        );
+      },
+      borderRadius: BorderRadius.circular(16),
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(vertical: 12),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(16),
+          color: Colors.deepOrange.shade600,
+        ),
+        child: Center(
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                'විස්තර බලන්න',
+                style: GoogleFonts.notoSansSinhala(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white,
+                ),
+              ),
+              const SizedBox(width: 8),
+              const Icon(
+                Icons.arrow_forward,
+                color: Colors.white,
+                size: 16,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class CountdownTimer extends StatelessWidget {
+  final Duration timeRemaining;
+  final AnimationController animationController;
+
+  const CountdownTimer({
+    super.key,
+    required this.timeRemaining,
+    required this.animationController,
+  });
+
+  @override
+  Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -368,13 +452,13 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceEvenly,
             children: [
-              _buildCountdownUnit(_timeRemaining.inDays, 'දින'),
+              _buildCountdownUnit(timeRemaining.inDays, 'දින'),
               _buildDivider(),
-              _buildCountdownUnit(_timeRemaining.inHours.remainder(24), 'පැය'),
+              _buildCountdownUnit(timeRemaining.inHours.remainder(24), 'පැය'),
               _buildDivider(),
-              _buildCountdownUnit(_timeRemaining.inMinutes.remainder(60), 'මිනිත්තු'),
+              _buildCountdownUnit(timeRemaining.inMinutes.remainder(60), 'මිනිත්තු'),
               _buildDivider(),
-              _buildCountdownUnit(_timeRemaining.inSeconds.remainder(60), 'තත්පර'),
+              _buildCountdownUnit(timeRemaining.inSeconds.remainder(60), 'තත්පර'),
             ],
           ),
         ],
@@ -431,10 +515,10 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
 
   Widget _buildDivider() {
     return AnimatedBuilder(
-      animation: _animationController,
+      animation: animationController,
       builder: (context, child) {
         return Opacity(
-          opacity: 0.4 + (_animationController.value * 0.6),
+          opacity: 0.4 + (animationController.value * 0.6),
           child: Text(
             ':',
             style: TextStyle(
@@ -447,112 +531,112 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
       },
     );
   }
+}
 
-  void _showNotificationDialog() {
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title: Text(
-            'දැනුම්දීම් සැකසුම්',
+class NotificationSettingsDialog extends StatelessWidget {
+  const NotificationSettingsDialog({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: Text(
+        'දැනුම්දීම් සැකසුම්',
+        style: GoogleFonts.notoSansSinhala(
+          fontWeight: FontWeight.bold,
+        ),
+      ),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          SwitchListTile(
+            title: Text(
+              'සියලුම නැකත් සඳහා දැනුම්දීම්',
+              style: GoogleFonts.notoSansSinhala(),
+            ),
+            value: true,
+            onChanged: (value) {
+              // Toggle notification setting
+            },
+          ),
+          SwitchListTile(
+            title: Text(
+              'පැය 1ක් කලින් මතක් කිරීම',
+              style: GoogleFonts.notoSansSinhala(),
+            ),
+            value: true,
+            onChanged: (value) {
+              // Toggle reminder setting
+            },
+          ),
+        ],
+      ),
+      actions: [
+        TextButton(
+          child: Text(
+            'එකඟයි',
             style: GoogleFonts.notoSansSinhala(
-              fontWeight: FontWeight.bold,
+              color: Colors.deepOrange.shade700,
             ),
           ),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              SwitchListTile(
-                title: Text(
-                  'සියලුම නැකත් සඳහා දැනුම්දීම්',
-                  style: GoogleFonts.notoSansSinhala(),
-                ),
-                value: true,
-                onChanged: (value) {
-                  // Toggle notification setting
-                },
-              ),
-              SwitchListTile(
-                title: Text(
-                  'පැය 1ක් කලින් මතක් කිරීම',
-                  style: GoogleFonts.notoSansSinhala(),
-                ),
-                value: true,
-                onChanged: (value) {
-                  // Toggle reminder setting
-                },
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              child: Text(
-                'එකඟයි',
-                style: GoogleFonts.notoSansSinhala(
-                  color: Colors.deepOrange.shade700,
-                ),
-              ),
-              onPressed: () {
-                Navigator.of(context).pop();
-              },
-            ),
-          ],
-        );
-      },
+          onPressed: () {
+            Navigator.of(context).pop();
+          },
+        ),
+      ],
     );
   }
+}
 
-  void _showAboutDialog() {
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title: Text(
-            'අප ගැන',
+class AboutDialog extends StatelessWidget {
+  const AboutDialog({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: Text(
+        'අප ගැන',
+        style: GoogleFonts.notoSansSinhala(
+          fontWeight: FontWeight.bold,
+        ),
+      ),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Lottie.asset(
+            'assets/animations/avurudu.json',
+            width: 150,
+            height: 150,
+          ),
+          const SizedBox(height: 16),
+          Text(
+            'මෙම යෙදුම සිංහල අලුත් අවුරුද්ද සැමරීමට සහාය වීම සඳහා නිර්මාණය කර ඇත.',
+            style: GoogleFonts.notoSansSinhala(),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'සියලුම නැකත් වේලාවන් ශ්‍රී ලංකාවේ පොදු දත්ත මත පදනම්ව සකස් කර ඇත.',
             style: GoogleFonts.notoSansSinhala(
-              fontWeight: FontWeight.bold,
+              fontSize: 12,
+              color: Colors.grey.shade700,
+            ),
+            textAlign: TextAlign.center,
+          ),
+        ],
+      ),
+      actions: [
+        TextButton(
+          child: Text(
+            'එකඟයි',
+            style: GoogleFonts.notoSansSinhala(
+              color: Colors.deepOrange.shade700,
             ),
           ),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Lottie.asset(
-                'assets/animations/avurudu.json',
-                width: 150,
-                height: 150,
-              ),
-              const SizedBox(height: 16),
-              Text(
-                'මෙම යෙදුම සිංහල අලුත් අවුරුද්ද සැමරීමට සහාය වීම සඳහා නිර්මාණය කර ඇත.',
-                style: GoogleFonts.notoSansSinhala(),
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 8),
-              Text(
-                'සියලුම නැකත් වේලාවන් ශ්‍රී ලංකාවේ පොදු දත්ත මත පදනම්ව සකස් කර ඇත.',
-                style: GoogleFonts.notoSansSinhala(
-                  fontSize: 12,
-                  color: Colors.grey.shade700,
-                ),
-                textAlign: TextAlign.center,
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              child: Text(
-                'එකඟයි',
-                style: GoogleFonts.notoSansSinhala(
-                  color: Colors.deepOrange.shade700,
-                ),
-              ),
-              onPressed: () {
-                Navigator.of(context).pop();
-              },
-            ),
-          ],
-        );
-      },
+          onPressed: () {
+            Navigator.of(context).pop();
+          },
+        ),
+      ],
     );
   }
 }

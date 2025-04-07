@@ -68,7 +68,7 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
                 fit: StackFit.expand,
                 children: [
                   Image.asset(
-                    'assets/images/event_background.jpg',
+                    'assets/images/avurudu_header.jpg',
                     fit: BoxFit.cover,
                   ),
                   Container(
