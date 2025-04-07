@@ -3,19 +3,19 @@ import '../models/nakath_event.dart';
 final List<NakathEvent> nakathEvents = [
   NakathEvent(
     title: 'පරණ අවුරුද්ද සඳහා ස්නානය',
-    dateTime: DateTime(2025, 4, 13, 12, 0),
+    dateTime: DateTime(2025, 4, 07, 20, 00),
     description:
         'දිඹුල්පත් යුෂ මිශ්‍ර නානු ගා ස්නානය කොට ඉෂ්ට දේවතා අනුස්මරණයෙහි යෙදීම.',
   ),
   NakathEvent(
     title: 'පුණ්‍ය කාලය',
-    dateTime: DateTime(2025, 4, 13, 20, 57),
+    dateTime: DateTime(2025, 4, 07, 21, 45),
     description:
         'සියලු වැඩ අත්හැර ආගමික වතාවත්වල යෙදීම.',
   ),
   NakathEvent(
     title: 'අලුත් අවුරුද්ද උදාව',
-    dateTime: DateTime(2025, 4, 14, 3, 21),
+    dateTime: DateTime(2025, 4, 07, 21, 47),
     description:
         'අලුත් අවුරුද්දේ ආරම්භය සනිටුහන් කරමින් ලාම්පු දැල්වීම සහ චාරිත්‍ර ආරම්භ කිරීම.',
   ),
