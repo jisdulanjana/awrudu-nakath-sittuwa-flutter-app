@@ -208,10 +208,11 @@ class MainContentView extends StatelessWidget {
       backgroundColor: Colors.deepOrange.shade700,
       flexibleSpace: FlexibleSpaceBar(
         title: Text(
-          'අලුත් අවුරුදු නැකත්',
+          'අවුරුදු නැකත් සීට්ටුව',
           style: GoogleFonts.notoSansSinhala(
             fontWeight: FontWeight.bold,
             color: Colors.white,
+            fontSize: 20,
           ),
         ),
         background: Stack(
